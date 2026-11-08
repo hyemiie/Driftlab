@@ -1,0 +1,22 @@
+# Add your application and database services here.
+services:
+  postgres:
+    image: postgres:16
+    container_name: driftwatch-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-driftwatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-driftwatch}
+      POSTGRES_DB: ${POSTGRES_DB:-driftwatch}
+    ports:
+      - "5438:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-driftwatch} -d ${POSTGRES_DB:-driftwatch}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

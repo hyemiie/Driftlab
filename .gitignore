@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+demo_data/
+driftwatch/.env
+*.csv
+driftwatch/data
