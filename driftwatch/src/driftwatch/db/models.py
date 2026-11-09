@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import (
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -20,6 +21,7 @@ class Base(DeclarativeBase):
 
 
 # ---------- Enums ----------
+
 
 class TaskType(str, enum.Enum):
     regression = "regression"
@@ -64,6 +66,7 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -71,8 +74,8 @@ class Project(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     owner_id: Mapped[uuid.UUID] = mapped_column(
-    ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-)
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     task_type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, name="task_type"), nullable=False
@@ -82,6 +85,8 @@ class Project(Base):
         nullable=False,
         default=ProjectStatus.created,
     )
+    # "day" | "week" | "batch"; set by the first production batch, then fixed
+    window_size: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -163,3 +168,108 @@ class ColumnStat(Base):
     )
 
     __table_args__ = (UniqueConstraint("profile_id", "column_name"),)
+
+
+class Batch(Base):
+    __tablename__ = "batches"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    filename: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_hash: Mapped[str] = mapped_column(String(64), nullable=False)  # sha256 hex
+    n_rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    warnings: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (UniqueConstraint("project_id", "file_hash"),)
+
+
+class Window(Base):
+    __tablename__ = "windows"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    window_end: Mapped[datetime] = mapped_column(  # exclusive
+        DateTime(timezone=True), nullable=False
+    )
+    n_rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    __table_args__ = (UniqueConstraint("project_id", "window_start"),)
+
+
+class WindowStat(Base):
+    __tablename__ = "window_stats"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    window_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("windows.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    column_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    stats: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (UniqueConstraint("window_id", "column_name"),)
+
+
+class PredictionRow(Base):
+    __tablename__ = "prediction_rows"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    window_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("windows.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    row_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Regression: use the _num pair. Classification: use the _cat pair.
+    prediction_num: Mapped[float | None] = mapped_column(Float, nullable=True)
+    label_num: Mapped[float | None] = mapped_column(Float, nullable=True)
+    prediction_cat: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    label_cat: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    label_received_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (UniqueConstraint("project_id", "row_id"),)

@@ -50,3 +50,4 @@ def get_project(
     user: User = Depends(get_current_user),
 ):
     return get_owned_project(project_id, user, db)
+

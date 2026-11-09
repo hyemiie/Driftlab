@@ -83,7 +83,7 @@ def _categorical_stats(s: pd.Series, n_rows: int) -> dict:
     }
 
 
-def _to_datetime(s: pd.Series) -> pd.Series:
+def to_datetime(s: pd.Series) -> pd.Series:
     try:
         return pd.to_datetime(s, errors="coerce", utc=True, format="mixed")
     except (TypeError, ValueError):
@@ -91,7 +91,7 @@ def _to_datetime(s: pd.Series) -> pd.Series:
 
 
 def _datetime_stats(s: pd.Series, n_rows: int) -> dict:
-    parsed = _to_datetime(s).dropna()
+    parsed = to_datetime(s).dropna()
     count = len(parsed)
     return {
         "n_rows": n_rows,
