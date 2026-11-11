@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from driftwatch.db.models import ColumnDtype, ColumnRole, ProjectStatus, TaskType
 
@@ -76,3 +77,47 @@ class ReferenceProfileRead(BaseModel):
     n_rows: int
     created_at: datetime
     columns: list[ColumnStatRead]
+
+
+MAX_BATCH = 1000
+
+
+class PredictionIn(BaseModel):
+    row_id: str = Field(max_length=255, description="Your ID for this prediction; also the idempotency key.")
+    timestamp: datetime | None = Field(None, description="When the prediction was made. Defaults to receipt time.")
+    model_version: str | None = Field(None, max_length=100)
+    inputs: dict[str, Any] = Field(default_factory=dict, description="Feature name -> scalar value.")
+    prediction: float | str | bool
+    prediction_score: float | None = Field(None, description="Predicted probability/confidence, if any.")
+
+
+class PredictLogRequest(BaseModel):
+    items: list[PredictionIn] = Field(min_length=1, max_length=MAX_BATCH)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_single_item(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "items" not in data and "row_id" in data:
+            return {"items": [data]}
+        return data
+
+
+class ItemResult(BaseModel):
+    row_id: str
+    status: Literal["accepted", "duplicate", "rejected"]
+    reason: str | None = None
+
+
+class FindingOut(BaseModel):
+    code: str
+    message: str
+    severity: Literal["info", "warning"]
+    count: int = 0
+
+
+class PredictLogResponse(BaseModel):
+    accepted: int
+    duplicates: int
+    rejected: int
+    results: list[ItemResult]
+    findings: list[FindingOut]

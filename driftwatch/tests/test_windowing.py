@@ -1,12 +1,11 @@
 
+# from driftwatch.services.windowing import (assign_windows, window_end_for,
+#     window_start_for,)
 import pandas as pd
 import pytest
+from driftwatch.services.windowing import  (assign_windows, window_end_for,
+    window_start_for,)
 
-from app.windowing import (
-    assign_windows,
-    window_end_for,
-    window_start_for,
-)
 
 
 def test_three_day_batch_produces_three_windows():

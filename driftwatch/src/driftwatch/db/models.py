@@ -209,7 +209,7 @@ class Window(Base):
     window_end: Mapped[datetime] = mapped_column(  # exclusive
         DateTime(timezone=True), nullable=False
     )
-    n_rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    n_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     sample_path: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -221,7 +221,19 @@ class Window(Base):
         nullable=False,
     )
 
-    __table_args__ = (UniqueConstraint("project_id", "window_start"),)
+
+    __table_args__ = (UniqueConstraint("project_id", "window_size", "window_start",
+                                       name="uq_window_project_size_start"),)
+
+
+class WindowColumnSummary(Base):
+    __tablename__ = "window_column_summaries"
+    window_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("windows.id", ondelete="CASCADE"), primary_key=True)
+    column_name: Mapped[str] = mapped_column(String(255), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    summary: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
 
 
 class WindowStat(Base):
@@ -247,29 +259,43 @@ class WindowStat(Base):
 class PredictionRow(Base):
     __tablename__ = "prediction_rows"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     window_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("windows.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+        ForeignKey("windows.id", ondelete="CASCADE"), nullable=False, index=True)
     row_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+    model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Regression: use the _num pair. Classification: use the _cat pair.
     prediction_num: Mapped[float | None] = mapped_column(Float, nullable=True)
     label_num: Mapped[float | None] = mapped_column(Float, nullable=True)
     prediction_cat: Mapped[str | None] = mapped_column(String(200), nullable=True)
     label_cat: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    prediction_score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    label_received_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+    label_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "row_id", name="uq_prediction_project_row"),
+        CheckConstraint("(prediction_num IS NOT NULL) <> (prediction_cat IS NOT NULL)",
+                        name="ck_one_prediction_kind"),
+        CheckConstraint("NOT (label_num IS NOT NULL AND label_cat IS NOT NULL)",
+                        name="ck_one_label_kind"),
     )
 
-    __table_args__ = (UniqueConstraint("project_id", "row_id"),)
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    prefix: Mapped[str] = mapped_column(String(12), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
