@@ -1,3 +1,4 @@
+from __future__ import annotations
 from uuid import UUID
 
 import jwt
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from driftwatch.config import settings
 from driftwatch.db.models import ApiKey, Project, User
 from driftwatch.db.session import get_db
-from __future__ import annotations
+
 
 import hashlib
 import os
@@ -21,7 +22,6 @@ from typing import Mapping
 from fastapi import Depends, Header, HTTPException
 
 # from .models import ApiKey
-from .window_profile import ColumnRefh 
 
 _engine = None
 _Session = None

@@ -28,7 +28,7 @@ VALID_WINDOW_SIZES = {"day", "week", "batch"}
 
 def _utc_timestamp(value) -> pd.Timestamp:
     """Convert a scalar timestamp to UTC."""
-    result = to_datetime(pd.Series([value]), utc=True)
+    result = to_datetime(pd.Series([value]))
 
     if result.isna().iloc[0]:
         raise ValueError("Timestamp could not be parsed.")

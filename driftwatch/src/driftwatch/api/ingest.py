@@ -21,12 +21,12 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from .models import PredictionRow, Window, WindowColumnSummary
+from driftwatch.db.models import PredictionRow, Window, WindowColumnSummary
 from .schemas import FindingOut, ItemResult, PredictionIn, PredictLogResponse
-from .window_profile import (CategoricalSummary, ColumnRef, NumericSummary, WindowSummary,
+from driftwatch.services.window_profile import (CategoricalSummary, ColumnRef, NumericSummary, WindowSummary,
                              merge_columns, merge_windows, profile_window, summary_from_dict,
                              summary_to_dict)
-from .windowing import assign_windows, window_end_for
+from driftwatch.services.windowing import assign_windows, window_end_for
 
 MIN_EVENT_TIME = datetime(2000, 1, 1, tzinfo=timezone.utc)  # catches epoch-0 / bad units
 _SCALAR = (str, int, float, bool, type(None))
