@@ -121,3 +121,75 @@ class PredictLogResponse(BaseModel):
     rejected: int
     results: list[ItemResult]
     findings: list[FindingOut]
+
+
+class LabelIn(BaseModel):
+    row_id: str = Field(max_length=255, description="The row_id you used in /predict-log.")
+    label: float | str | bool = Field(description="The true outcome for that prediction.")
+
+
+class LabelsRequest(BaseModel):
+    items: list[LabelIn] = Field(min_length=1, max_length=MAX_BATCH)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_single_item(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "items" not in data and "row_id" in data:
+            return {"items": [data]}
+        return data
+
+
+class LabelResult(BaseModel):
+    row_id: str
+    status: Literal["updated", "unchanged", "unknown_id", "rejected", "superseded"]
+    reason: str | None = None
+
+
+class LabelsResponse(BaseModel):
+    updated: int
+    unchanged: int
+    unknown_id: int
+    rejected: int
+    superseded: int
+    results: list[LabelResult]
+    findings: list[FindingOut]
+
+
+class ClassMetrics(BaseModel):
+    label: str
+    precision: float | None
+    recall: float | None
+    f1: float | None
+    support: int  # how many labeled rows truly belong to this class
+
+
+class WindowMetrics(BaseModel):
+    window_id: UUID
+    window_start: datetime
+    window_end: datetime
+    n_predictions: int
+    n_labeled: int
+    label_coverage: float            # n_labeled / n_predictions
+    label_delay_p50_s: float | None  # seconds between prediction and label arriving
+    label_delay_p90_s: float | None
+    n_model_versions: int            # >1 means the metrics blend different models
+    quality: Literal["no_labels", "low_labels", "ok"]
+    # regression
+    mae: float | None = None
+    rmse: float | None = None
+    bias: float | None = None        # mean(prediction - label); positive = over-predicting
+    r2: float | None = None
+    # classification
+    accuracy: float | None = None
+    macro_precision: float | None = None
+    macro_recall: float | None = None
+    macro_f1: float | None = None
+    per_class: list[ClassMetrics] | None = None
+    confusion: dict[str, dict[str, int]] | None = None  # confusion[actual][predicted]
+
+
+class PerformanceResponse(BaseModel):
+    task: str
+    window_size: str
+    min_labels: int
+    windows: list[WindowMetrics]

@@ -21,7 +21,7 @@ from typing import Mapping
 from fastapi import Depends, Header, HTTPException
 
 # from .models import ApiKey
-from .window_profile import ColumnRef
+from .window_profile import ColumnRefh 
 
 _engine = None
 _Session = None
@@ -107,4 +107,9 @@ def get_project_context(project_id: uuid.UUID = Depends(get_project_id),
                         session: Session = Depends(get_session)) -> ProjectContext:
     """WIRE THIS UP: load the project's task type, window size and reference bin edges /
     categories from reference_profiles + column_stats, wrapped in NumericRef / CategoricalRef."""
+    raise NotImplementedError
+
+def get_project_access(project_id: uuid.UUID, session: Session = Depends(get_session)) -> ProjectContext:
+    """WIRE THIS UP: dashboard routes use your normal user auth (JWT), not the API key.
+    Check the signed-in user may read this project, then return its ProjectContext."""
     raise NotImplementedError
